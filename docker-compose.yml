@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: restaurant
+      POSTGRES_PASSWORD: restaurant
+      POSTGRES_DB: restaurant
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+volumes:
+  pgdata:
