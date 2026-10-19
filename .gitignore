@@ -3,3 +3,5 @@ __pycache__/
 .env
 .vs/
 *.pyproj.user
+
+.pytest_cache/

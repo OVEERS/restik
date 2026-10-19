@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +13,7 @@ from app.models.order import ALLOWED_TRANSITIONS
 from app.schemas.order import OrderCreate, OrderOut, OrderStatusUpdate
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+logger = logging.getLogger(__name__)
 
 
 async def load_order(db: AsyncSession, order_id: int, lock: bool = False) -> Order | None:
@@ -30,7 +32,6 @@ async def load_order(db: AsyncSession, order_id: int, lock: bool = False) -> Ord
 def is_visible_to(order: Order, user: User) -> bool:
     """Клиент видит только свои заказы, сотрудники видят все."""
     return user.role != UserRole.customer or order.user_id == user.id
-
 
 
 @router.post("", response_model=OrderOut, status_code=201)
@@ -63,7 +64,6 @@ async def create_order(
             detail=f"Блюда не найдены или сейчас недоступны: {unavailable}",
         )
 
-
     items = []
     total = Decimal("0")
     for item_id, quantity in quantities.items():
@@ -85,6 +85,7 @@ async def create_order(
     )
     db.add(order)
     await db.commit()  # заказ и все его позиции сохраняются одной транзакцией
+    logger.info("Создан заказ %s: пользователь %s, сумма %s", order.id, user.id, total)
 
     return await load_order(db, order.id)
 
@@ -96,7 +97,6 @@ async def list_orders(
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-
 ):
     query = select(Order).options(selectinload(Order.items))
 
@@ -129,7 +129,6 @@ async def change_status(
     data: OrderStatusUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-
 ):
     # lock=True: пока мы меняем статус, второй запрос к этому же заказу подождёт
     order = await load_order(db, order_id, lock=True)
@@ -152,7 +151,12 @@ async def change_status(
             detail=f"Нельзя перевести заказ из «{order.status.value}» в «{new_status.value}»",
         )
 
+    old_status = order.status
     order.status = new_status
     await db.commit()
+    logger.info(
+        "Заказ %s: %s -> %s (пользователь %s)",
+        order_id, old_status.value, new_status.value, user.id,
+    )
 
     return await load_order(db, order_id)
