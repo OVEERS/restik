@@ -9,6 +9,24 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U restaurant -d restaurant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    profiles: ["app"]
+    environment:
+      # внутри Docker база доступна по имени сервиса (db) и порту 5432
+      DATABASE_URL: postgresql+asyncpg://restaurant:restaurant@db:5432/restaurant
+      SECRET_KEY: ${SECRET_KEY:?Добавь SECRET_KEY в файл .env}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:

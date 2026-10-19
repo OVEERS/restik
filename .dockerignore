@@ -1,0 +1,9 @@
+.venv/
+.git/
+.vs/
+.env
+__pycache__/
+.pytest_cache/
+tests/
+*.pyproj
+*.slnx
